@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcard Study App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            background: white;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        button.active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .filter-btn {
+            background: rgba(255,255,255,0.9);
+        }
+
+        .filter-btn.active {
+            background: #2196F3;
+            color: white;
+        }
+
+        .flashcard {
+            perspective: 1000px;
+            margin: 20px auto;
+            height: 300px;
+            width: 500px;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 20px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.4em;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card-front {
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            color: #333;
+        }
+
+        .card-back {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        .mastered {
+            border: 4px solid #FFD700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .card-count {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .no-cards {
+            text-align: center;
+            color: rgba(255,255,255,0.8);
+            font-size: 1.2em;
+            padding: 40px;
+        }
+
+        @media (max-width: 600px) {
+            .flashcard {
+                width: 90%;
+                height: 250px;
+            }
+            
+            .card-front, .card-back {
+                font-size: 1.2em;
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Flashcard Study App</h1>
+        
+        <div class="card-count" id="cardCount">0 cards total | 0 unmastered</div>
+        
+        <div class="controls">
+            <button id="addCardBtn">➕ Create New Card</button>
+            <button id="showAllBtn" class="filter-btn active">All Cards</button>
+            <button id="showUnmasteredBtn" class="filter-btn">📖 Unmastered</button>
+            <button id="showMasteredBtn" class="filter-btn">⭐ Mastered</button>
+        </div>
+
+        <div id="flashcardContainer">
+            <div class="no-cards">Create your first flashcard to get started!</div>
+        </div>
+    </div>
+
+    <!-- Add Card Modal -->
+    <div id="addCardModal" class="modal">
+        <div class="modal-content">
+            <h2>📝 Create New Flashcard</h2>
+            <form id="cardForm">
+                <div class="form-group">
+                    <label for="frontText">Front (Question):</label>
+                    <input type="text" id="frontText" placeholder="What is the capital of France?" required>
+                </div>
+                <div class="form-group">
+                    <label for="backText">Back (Answer):</label>
+                    <input type="text" id="backText" placeholder="Paris" required>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" id="cancelBtn">Cancel</button>
+                    <button type="submit">✅ Add Card</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        class FlashcardApp {
+            constructor() {
+                this.cards = JSON.parse(localStorage.getItem('flashcards')) || [];
+                this.currentFilter = 'all';
+                this.currentCardIndex = 0;
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.updateCardCount();
+                this.renderCards();
+            }
+
+            bindEvents() {
+                // Add card modal
+                document.getElementById('addCardBtn').addEventListener('click', () => {
+                    this.showModal();
+                });
+
+                document.getElementById('cardForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.addCard();
+                });
+
+                document.getElementById('cancelBtn').addEventListener('click', () => {
+                    this.hideModal();
+                });
+
+                // Filter buttons
+                document.getElementById('showAllBtn').addEventListener('click', () => this.setFilter('all'));
+                document.getElementById('showUnmasteredBtn').addEventListener('click', () => this.setFilter('unmastered'));
+                document.getElementById('showMasteredBtn').addEventListener('click', () => this.setFilter('mastered'));
+
+                // Close modal on outside click
+                document.getElementById('addCardModal').addEventListener('click', (e) => {
+                    if (e.target.classList.contains('modal')) {
+                        this.hideModal();
+                    }
+                });
+            }
+
+            showModal() {
+                document.getElementById('addCardModal').style.display = 'flex';
+                document.getElementById('frontText').focus();
+            }
+
+            hideModal() {
+                document.getElementById('addCardModal').style.display = 'none';
+                document.getElementById('cardForm').reset();
+            }
+
+            addCard() {
+                const front = document.getElementById('frontText').value.trim();
+                const back = document.getElementById('backText').value.trim();
+
+                if (front && back) {
+                    this.cards.push({
+                        id: Date.now(),
+                        front,
+                        back,
+                        mastered: false
+                    });
+                    this.saveCards();
+                    this.renderCards();
+                    this.updateCardCount();
+                    this.hideModal();
+                }
+            }
+
+            setFilter(filter) {
+                this.currentFilter = filter;
+                this.updateFilterButtons();
+                this.renderCards();
+            }
+
+            updateFilterButtons() {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.getElementById(`show${this.currentFilter.charAt(0).toUpperCase() + 
+                    this.currentFilter.slice(1)}Btn`).classList.add('active');
+            }
+
+            toggleMastered(cardId) {
+                const card = this.cards.find(c => c.id === cardId);
+                if (card) {
+                    card.mastered = !card.mastered;
+                    this.saveCards();
+                    this.updateCardCount();
+                    this.renderCards();
+                }
+            }
+
+            deleteCard(cardId) {
+                this.cards = this.cards.filter(c => c.id !== cardId);
+                this.saveCards();
+                this.updateCardCount();
+                this.renderCards();
+            }
+
+            getFilteredCards() {
+                switch (this.currentFilter) {
+                    case 'unmastered':
+                        return this.cards.filter(card => !card.mastered);
+                    case 'mastered':
+                        return this.cards.filter(card => card.mastered);
+                    default:
+                        return this.cards;
+                }
+            }
+
+            renderCards() {
+                const container = document.getElementById('flashcardContainer');
+                const filteredCards = this.getFilteredCards();
+
+                if (filteredCards.length === 0) {
+                    container.innerHTML = '<div class="no-cards">' + 
+                        (this.currentFilter === 'all' ? 'Create your first flashcard!' : 
+                         No ${this.currentFilter} cards yet!) + '</div>';
+                    return;
+                }
+
+                container.innerHTML = filteredCards.map((card, index) => `
+                    <div class="flashcard">
+                        <div class="card-inner" onclick="app.toggleFlip(${index})">
+                            <div class="card-front ${card.mastered ? 'mastered' : ''}">
+                                ${card.front}
+                            </div>
+                            <div class="card-back ${card.mastered ? 'mastered' : ''}">
+                                ${card.back}
+                                <div style="margin-top: 20px; font-size: 0.7em; opacity: 0.9;">
+                                    ${card.mastered ? '⭐ Mastered' : '📖 Keep practicing'}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align: center; margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="app.toggleMastered(${card.id})" 
+                                    style="background: ${card.mastered ? '#f44336' : '#4CAF50'}; color: white; padding: 8px 16px; font-size: 0.9em;">
+                                ${card.mastered ? 'Undo Mastered' : 'Mark Mastered'}
+                            </button>
+                            <button onclick="app.deleteCard(${card.id})" 
+                                    style="background: #f44336; color: white; padding: 8px 16px; font-size: 0.9em;">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Re-attach flip event listeners
+                filteredCards.forEach((_, index) => {
+                    const cardInner = container.querySelectorAll('.card-inner')[index];
+                    cardInner.addEventListener('click', () => this.toggleFlip(index));
+                });
+            }
+
+            toggleFlip(index) {
+                const cardInner = document.querySelectorAll('.card-inner')[index];
+                cardInner.classList.toggle('flipped');
+            }
+
+            updateCardCount() {
+                const total = this.cards.length;
+                const unmastered = this.cards.filter(c => !c.mastered).length;
+                document.getElementById('cardCount').textContent = 
+                    ${total} cards total | ${unmastered} unmastered;
+            }
+
+            saveCards() {
+                localStorage.setItem('flashcards', JSON.stringify(this.cards));
+            }
+        }
+
+        // Initialize app
+        const app = new FlashcardApp();
+    </script>
+</body>
+</html>
+Write to Christian Panilagao Muñoz
